@@ -49,23 +49,44 @@ The application consists of two main pipelines:
 
 ## Installation and Setup
 
-[To be completed]
+Create the project directory and initialize it:
+-mkdir nodejs-rag-chatbot
+-cd nodejs-rag-chatbot
+-npm init -y
+
+Install dependencies:
+-npm install express pg pdf-parse uuid dotenv multer
+-npm install --save-dev nodemon
+
+A quick note on the packages: multer is what makes file uploads work on the /ingest endpoint. Without it, Express can't parse multipart form data.
+
+pdf-parse does the heavy lifting on PDFs, though watch out for scanned PDFs. Those are just images with no text layer underneath, so you'll get back an empty string.
+
+pg talks to Postgres, uuid gives each row a unique ID, and dotenv loads your keys before the app does anything.
 
 ## Environment Variables
+Create a .env in the project root. It needs seven values:
 
-[Add required environment variables here. Never include actual API keys or passwords.]
+-GEMINI_API_KEY=AIzaSy...        ← your Gemini key from -Google AI Studio
+-GROQ_API_KEY=gsk_...            ← your Groq key from -console.groq.com
+-POSTGRES_USER=rag_user
+-POSTGRES_PASSWORD=rag_pass      ← choose any password,this is local only
+-POSTGRES_DB=rag_db
+-DATABASE_URL=postgresql://rag_user:rag_pass@localhost:5432/rag_db
+-PORT=3000
+
 
 ## API Documentation
+[to be written]
 
-[Document the available endpoints, request formats, and responses.]
 
 ## Troubleshooting
+[to be written]
 
-[Document errors encountered during development and their solutions.]
 
 ## What I Learned
 
-[Write about the concepts, tools, and technical challenges you learned while building this project.]
+During building these projects, i got to learn about the imapcts of open ai and the system prompt , ingestions and embedding on how the technology is used to connect the LLM and get the required resposne.
 
 ## Future Improvements
 
