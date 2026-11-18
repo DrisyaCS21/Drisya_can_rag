@@ -1,22 +1,38 @@
-
 const { pool } = require('./db');
-const { embedText, generateAnswer } = require('./embeddings');
+
+const {
+  embedText,
+  generateAnswer,
+} = require('./embeddings');
 
 async function queryDocuments(question, documentId, userId) {
-  const questionEmbedding = await embedText(question);
+  // Generate an embedding specifically for retrieval queries.
+  const questionEmbedding = await embedText(
+    question,
+    'RETRIEVAL_QUERY'
+  );
 
+  // Retrieve the most relevant chunks belonging to
+  // this user's selected document.
   const { rows } = await pool.query(
-    `SELECT
-       d.content,
-       d.source,
-       1 - (d.embedding <=> $1::vector) AS similarity
-     FROM documents d
-     INNER JOIN uploaded_documents ud
-       ON d.document_id = ud.id
-     WHERE ud.id = $2
-       AND ud.user_id = $3
-     ORDER BY d.embedding <=> $1::vector
-     LIMIT 5`,
+    `
+      SELECT
+        d.content,
+        d.source,
+        1 - (d.embedding <=> $1::vector) AS similarity
+
+      FROM documents d
+
+      INNER JOIN uploaded_documents ud
+        ON d.document_id = ud.id
+
+      WHERE ud.id = $2
+        AND ud.user_id = $3
+
+      ORDER BY d.embedding <=> $1::vector
+
+      LIMIT 8
+    `,
     [
       JSON.stringify(questionEmbedding),
       documentId,
@@ -31,9 +47,19 @@ async function queryDocuments(question, documentId, userId) {
     };
   }
 
+  // Give the LLM clearly labelled document excerpts.
   const context = rows
-    .map(row => row.content)
-    .join('\n\n---\n\n');
+    .map((row, index) => {
+      return `
+EXCERPT ${index + 1}
+SOURCE: ${row.source}
+SIMILARITY: ${Number(row.similarity).toFixed(3)}
+
+CONTENT:
+${row.content}
+`;
+    })
+    .join('\n\n--------------------\n\n');
 
   const answer = await generateAnswer(context, question);
 

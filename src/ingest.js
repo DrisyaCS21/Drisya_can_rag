@@ -4,18 +4,64 @@ const { v4: uuidv4 } = require('uuid');
 const { pool } = require('./db');
 const { embedText } = require('./embeddings');
 
-function chunkText(text, chunkSize = 500, overlap = 50) {
-  const chunks = [];
-  let start = 0;
 
-  while (start < text.length) {
-    const end = Math.min(start + chunkSize, text.length);
-    chunks.push(text.slice(start, end).trim());
-    start += chunkSize - overlap;
+function chunkText(text, chunkSize = 1200, overlap = 180) {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map(paragraph => paragraph.trim())
+    .filter(Boolean);
+
+  const chunks = [];
+  let currentChunk = '';
+
+  for (const paragraph of paragraphs) {
+    // Keep reasonably sized paragraphs together.
+    if (paragraph.length > chunkSize) {
+      if (currentChunk) {
+        chunks.push(currentChunk);
+        currentChunk = '';
+      }
+
+      // Split unusually long paragraphs into smaller pieces.
+      let start = 0;
+
+      while (start < paragraph.length) {
+        const end = Math.min(start + chunkSize, paragraph.length);
+
+        const piece = paragraph.slice(start, end).trim();
+
+        if (piece.length > 50) {
+          chunks.push(piece);
+        }
+
+        start += chunkSize - overlap;
+      }
+
+      continue;
+    }
+
+    if (
+      currentChunk &&
+      currentChunk.length + paragraph.length + 2 > chunkSize
+    ) {
+      chunks.push(currentChunk);
+
+      // Preserve some context from the previous chunk.
+      currentChunk = currentChunk.slice(-overlap);
+    }
+
+    currentChunk = currentChunk
+      ? `${currentChunk}\n\n${paragraph}`
+      : paragraph;
+  }
+
+  if (currentChunk.trim().length > 50) {
+    chunks.push(currentChunk.trim());
   }
 
   return chunks.filter(chunk => chunk.length > 50);
 }
+
 
 async function ingestDocument(buffer, filename, userId) {
   const parser = new PDFParse({ data: buffer });
